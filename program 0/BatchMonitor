@@ -1,0 +1,114 @@
+#!/usr/bin/env python
+from __future__ import (print_function, nested_scopes, unicode_literals, generators)
+import traceback
+import glob
+from os import path
+import os
+import string
+import random
+import sys
+
+jobs_dir = './jobs/'
+
+get_input = input
+if sys.version_info.major < 3:
+    get_input = raw_input
+    
+def random_file_name():
+    return ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(20))
+    
+def get_all_jobs():
+    files = glob.glob(path.join(jobs_dir, '*.cpp')) + glob.glob(path.join(jobs_dir, '*.c'))
+    rel_paths = [path.relpath(f, jobs_dir) for f in files]
+    
+    return rel_paths
+    
+def run_job(job):
+    out_file_name = '{}.out'.format(random_file_name())
+    out_file_path = path.join('/tmp/', out_file_name)
+    
+    print('Compiling {} to {}'.format(job, out_file_name))
+    loc = path.join(jobs_dir, job)
+    
+    compiler = '/usr/bin/g++' if job.endswith('.cpp') else '/usr/bin/gcc'
+    compile_cmd = '{} {} -o {}'.format(compiler, loc, out_file_path)
+    print(compile_cmd)
+    compile_status = os.system(compile_cmd)
+    
+    print('Compilation ended with code {}'.format(compile_status))
+    
+    if compile_status != 0:
+        return compile_status
+    
+    print('Executing {}'.format(out_file_path))
+    program_result = os.system('{}'.format(out_file_path))
+    print('Done. Returned with code {}.\n'.format(program_result))
+    
+    return program_result
+    
+    
+def execute(command):
+    global jobs_dir
+    command = command.strip().lower()
+    
+    if command == '':
+        return
+    elif command == 'list':
+        jobs = get_all_jobs()
+        print('\n'.join(jobs))
+        print('{} total'.format(len(jobs)))
+    elif command.startswith('set-jobs-dir '):
+        print('Set the jobs directory')
+        directory = command[len('set-jobs-dir '):]
+        jobs_dir = directory
+    elif command.startswith('run '):
+        job = command[len('run '):]
+        if job == 'all':
+            jobs = get_all_jobs()
+            print('Running all {} jobs'.format(len(jobs)))
+            
+            [run_job(p) for p in jobs]
+        else:
+            run_job(job)
+    elif command == 'help':
+        print("""BatchMonitor v0.0.
+Usage: ./BatchMonitor <command>
+All available commands:
+list                    List all jobs.
+set-jobs-dir <path>     Set the jobs directory. The path can be relative to the 
+                          current working directory (cwd), or any absolute path.
+run all                 Run all jobs listed in the `list` command.
+run <job>               Run a specific job listed in the `list` command.
+help                    Display this help message.
+exit                    Shutdown.
+""")
+    else:
+        print('Unknown command. Type \'help\' for help')
+
+def exit_msg():
+    print('Bye.')
+    
+def main():
+    while True:
+        try:
+            command=get_input(jobs_dir+'> ')
+            
+            if command == 'exit':
+                exit_msg()
+                break
+            else:
+                try:
+                    execute(command)
+                except KeyboardInterrupt:
+                    print()
+        except KeyboardInterrupt:
+            print()
+            exit_msg()
+            break
+        except:
+            traceback.print_exc()
+            
+        
+if __name__ == '__main__':
+    main()
+
